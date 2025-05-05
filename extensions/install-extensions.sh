@@ -1,50 +1,57 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
-# Where to write all logs
-LOGFILE="/home/gitpod/extensions/vsix-installer.log"
+# Location for the installer log
+LOGFILE="/var/log/vsix-installer.log"
 
-# Hint logfile location to the user
-echo "[Info] VSIX installer log: ${LOGFILE}"
+echo "[Info] VSIX installer log: $LOGFILE"
 
-# Redirect all subsequent output to LOGFILE
-exec >"${LOGFILE}" 2>&1
+# Redirect all output (stdout and stderr) to the log file
+exec >>"$LOGFILE" 2>&1
 
-# Ensure 'code' CLI is available
-if ! command -v code &>/dev/null; then
-  echo "[Error] 'code' CLI not found in PATH."
-  exit 1
-fi
+# Allow script to continue on errors but capture failures via ERR trap
+set +e
+set -o pipefail
 
-# Load installed extensions into a lowercase array
-readarray -t INSTALLED < <(code --list-extensions | tr '[:upper:]' '[:lower:]')
+trap 'echo "[Error] Command \"$BASH_COMMAND\" failed with exit code $?"' ERR
 
-# Check if any installed ID is a prefix of VSIX basename
-is_installed_vsix() {
-  local base="$1"
-  for id in "${INSTALLED[@]}"; do
-    [[ "$base" == "$id"* ]] && return 0
-  done
-  return 1
+# Helper to timestamp logs
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
-# Process each VSIX in the extensions directory
-echo "[Start] $(date '+%Y-%m-%d %H:%M:%S') - Beginning VSIX installation"
-for vsix in /home/gitpod/extensions/*.vsix; do
-  [[ -e "$vsix" ]] || continue
-  fname=$(basename "${vsix}")
-  base=${fname%.vsix}
-  base=${base,,}  # to lowercase
+log "Starting VSIX installation"
 
-  echo "[Check] ${fname}"
-  if is_installed_vsix "${base}"; then
-    echo "[Skip] ${base} already installed"
-  else
-    echo "[Install] Installing ${fname}"
-    code --install-extension "${vsix}"
-    echo "[Done] ${base} installed"
-  fi
-  echo
- done
+# Check for 'code' CLI
+if ! command -v code >/dev/null 2>&1; then
+  log "[Error] 'code' CLI not found in PATH."
+else
+  # Load installed extensions into a lowercase array
+  readarray -t INSTALLED < <(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')
 
-echo "[Complete] $(date '+%Y-%m-%d %H:%M:%S') - All VSIX files processed"
+  shopt -s nullglob
+  for vsix in /home/gitpod/extensions/*.vsix; do
+    fname=$(basename "$vsix")
+    base=${fname%.vsix}
+    base=${base,,}
+
+    log "Checking $fname"
+
+    # Determine if any installed extension ID prefixes the VSIX basename
+    skip=false
+    for id in "${INSTALLED[@]}"; do
+      [[ "$base" == "$id"* ]] && { skip=true; break; }
+    done
+
+    if $skip; then
+      log "Skipping $base (already installed)"
+    else
+      log "Installing $fname"
+      code --install-extension "$vsix"
+      log "Installed $base"
+    fi
+  done
+  shopt -u nullglob
+fi
+
+log "Completed VSIX installation"
+exit 0
