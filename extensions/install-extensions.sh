@@ -1,42 +1,50 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1) Ensure 'code' is available
+# Where to write all logs
+LOGFILE="/home/gitpod/extensions/vsix-installer.log"
+
+# Hint logfile location to the user
+echo "[Info] VSIX installer log: ${LOGFILE}"
+
+# Redirect all subsequent output to LOGFILE
+exec >"${LOGFILE}" 2>&1
+
+# Ensure 'code' CLI is available
 if ! command -v code &>/dev/null; then
-  echo "❌ 'code' CLI not found in PATH." >&2
+  echo "[Error] 'code' CLI not found in PATH."
   exit 1
 fi
 
-# 2) Read installed extension IDs (lowercase) into an array
-mapfile -t INSTALLED < <(code --list-extensions)
+# Load installed extensions into a lowercase array
+readarray -t INSTALLED < <(code --list-extensions | tr '[:upper:]' '[:lower:]')
 
-# Helper: return 0 if any installed ID is a prefix of the given name
+# Check if any installed ID is a prefix of VSIX basename
 is_installed_vsix() {
   local base="$1"
   for id in "${INSTALLED[@]}"; do
-    if [[ "$base" == "$id"* ]]; then
-      return 0
-    fi
+    [[ "$base" == "$id"* ]] && return 0
   done
   return 1
 }
 
-# 3) Loop over all .vsix files
-shopt -s nullglob
+# Process each VSIX in the extensions directory
+echo "[Start] $(date '+%Y-%m-%d %H:%M:%S') - Beginning VSIX installation"
 for vsix in /home/gitpod/extensions/*.vsix; do
-  fname="$(basename "$vsix")"
-  base="${fname%.vsix}"
-  base="${base,,}"  # lowercase to match INSTALLED
+  [[ -e "$vsix" ]] || continue
+  fname=$(basename "${vsix}")
+  base=${fname%.vsix}
+  base=${base,,}  # to lowercase
 
-  echo "🔍 Checking VSIX: $fname"
-
-  if is_installed_vsix "$base"; then
-    echo "   ✔ Already covered by installed extension (prefix match), skipping."
+  echo "[Check] ${fname}"
+  if is_installed_vsix "${base}"; then
+    echo "[Skip] ${base} already installed"
   else
-    echo "   ➕ Installing: $fname"
-    code --install-extension "$vsix"
+    echo "[Install] Installing ${fname}"
+    code --install-extension "${vsix}"
+    echo "[Done] ${base} installed"
   fi
-done
-shopt -u nullglob
+  echo
+ done
 
-echo "✅ Done."
+echo "[Complete] $(date '+%Y-%m-%d %H:%M:%S') - All VSIX files processed"
