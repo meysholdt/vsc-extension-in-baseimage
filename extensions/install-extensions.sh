@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Location for the installer log
-LOGFILE="/var/log/vsix-installer.log"
+LOGFILE="/home/gitpod/extensions/vsix-installer.log"
 
 echo "[Info] VSIX installer log: $LOGFILE"
 
