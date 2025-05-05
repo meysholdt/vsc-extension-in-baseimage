@@ -1,0 +1,3 @@
+image:
+  context: ./extensions
+  file: .gitpod.Dockerfile
