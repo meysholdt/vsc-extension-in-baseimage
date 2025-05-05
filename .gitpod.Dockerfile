@@ -1,6 +1,6 @@
 FROM gitpod/workspace-full
 
-ENV rebuild=3
+ENV rebuild=4
 
 USER gitpod
 
