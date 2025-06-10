@@ -1,3 +1,9 @@
 image:
   context: ./extensions
   file: .gitpod.Dockerfile
+tasks:
+  - name: "Install Extensions"
+    command: |
+      code --install-extension /home/gitpod/extensions/1nVitr0.blocksort-2.4.2.vsix
+      code --install-extension /home/gitpod/extensions/PKief.material-icon-theme-5.22.0.vsix
+
