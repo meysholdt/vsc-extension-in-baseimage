@@ -1,3 +1,6 @@
 image:
   context: ./extensions
   file: .gitpod.Dockerfile
+env:
+  VSCODE_AGENT_FOLDER: "/workspace/.vscode-remote/extensions/"
+  VSCODE_EXTENSIONS: "/workspace/.vscode-remote/extensions/"
